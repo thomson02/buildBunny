@@ -1,17 +1,22 @@
 var express = require('express');
-var fs = require('fs');
-var http = require('http');
+var app = express();
+var _ = require('underscore');
+var config = require('./config.js');
+var cronJob = require('cron').CronJob;
 var encode = require('./lib/encode');
 var sprintf = require('./lib/sprintf');
 var Plugins = require('./lib/plugins');
-var config = require('./config.js');
-var cronJob = require('cron').CronJob;
-var _ = require('underscore');
-var app = express();
 
-// app.use(express.logger());
-app.use(express['static'](__dirname + '/public'));
-app.use(express.errorHandler({showStack: true, dumpExceptions: true}));
+// Configure the server
+app.configure(function(){
+        app.use(express.favicon());
+        app.use(express.static(__dirname + '/public'));
+        app.use(express.bodyParser());
+        app.use(express.cookieParser());
+        app.use(express.errorHandler({ showStack: true, dumpExceptions: true }));
+        app.use(app.router);
+    }
+);
 
 var download = function(url, dest, cb) {
     var file = fs.createWriteStream(dest);
@@ -24,29 +29,15 @@ var download = function(url, dest, cb) {
     });
 };
 
-// Bootcode
-app.get('/vl/bc.jsp', function(req, res){
-  res.sendfile(__dirname + '/public/bootcode.bin');
+// Routes
+app.get("/vl/bc.jsp", function(req, res) {
+    res.sendfile(__dirname + '/public/bootcode.bin');
 });
 
-// Tell Nabaztag the server for ping and broadcast
 app.get('/vl/locate.jsp', function(req, res){
-  res.send(sprintf('ping %s:%d\nbroad %s:%d', config.server.host, config.server.port, config.server.host, config.server.port));
+    res.send(sprintf('ping %s:%d\nbroad %s:%d', config.server.host, config.server.port, config.server.host, config.server.port));
 });
 
-// Hold down the button and speak
-/* Disable for heroku - not used.
-app.post('/vl/record.jsp', function(req, res){
-    var stream = fs.createWriteStream('recordings/' + new Date().getTime() + '.mp3');
-    req.pipe(stream);
-    req.on('finish', function(){
-        stream.close();
-        res.send('');
-    });
-});
-*/
-
-// Called when Nabaztag pings server
 app.get('/vl/p4.jsp', function(req, res){
     var data = [0x7f, 0x03, 0x00, 0x00, 0x01, 5];
     var ambient = [];
@@ -102,17 +93,17 @@ app.get('/pass', function(req, res){
 });
 
 app.get('/mood/:mood', function(req, res) {
-	if (req.params.mood === 'happy') {
-		bunnyQueue.push({ left: 1, right: 1, action: 'ears' });  // sad ears
-	}
-	else if (req.params.mood === 'ok') {
-		bunnyQueue.push({ left: 5, right: 5, action: 'ears' });  // ok ears
-	}
-	else {
-		bunnyQueue.push({ left: 9, right: 9, action: 'ears' });  // sad ears
-	}
-	
-	res.send('');
+    if (req.params.mood === 'happy') {
+        bunnyQueue.push({ left: 1, right: 1, action: 'ears' });  // sad ears
+    }
+    else if (req.params.mood === 'ok') {
+        bunnyQueue.push({ left: 5, right: 5, action: 'ears' });  // ok ears
+    }
+    else {
+        bunnyQueue.push({ left: 9, right: 9, action: 'ears' });  // sad ears
+    }
+
+    res.send('');
 });
 
 app.get('/tts/:msg', function(req, res){
@@ -120,27 +111,41 @@ app.get('/tts/:msg', function(req, res){
     res.send('ok');
 });
 
-// Set server timezone
-process.env.TZ = config.server.tz || 'GMT';
+// Hold down the button and speak
+/* Disable for heroku - not used.
+ app.post('/vl/record.jsp', function(req, res){
+ var stream = fs.createWriteStream('recordings/' + new Date().getTime() + '.mp3');
+ req.pipe(stream);
+ req.on('finish', function(){
+ stream.close();
+ res.send('');
+ });
+ });
+ */
 
-// Init plugins
+// CONFIG
+process.env.TZ = config.server.tz || 'GMT';
 Plugins = exports.Plugins = new Plugins(this);
 Plugins.load(config.plugins);
-
-// init startup commands
 var bunnyQueue = config.startupCommands;
 
 var cronJobs = _.map(config.scheduledCommands, function(c) {
-	return new cronJob({
-		cronTime: c.time,
-		onTick: function() {
-			 var d = new Date();
-			 console.log("Scheduled Action: " + c.cmd.action + "   (" + d.toUTCString() + ")");
-			 bunnyQueue.push(c.cmd);
-		},
-		start: true
-	});
+    return new cronJob({
+        cronTime: c.time,
+        onTick: function() {
+            var d = new Date();
+            console.log("Scheduled Action: " + c.cmd.action + "   (" + d.toUTCString() + ")");
+            bunnyQueue.push(c.cmd);
+        },
+        start: true
+    });
 });
 
+//////////////////
+// START SERVER //
+//////////////////
+var port = process.env.PORT || 6000;
 console.log("Starting Bunny...");
-app.listen(config.server.port);
+app.listen(port, function() {
+    console.log("Listening on " + port);
+});
