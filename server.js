@@ -49,7 +49,7 @@ app.get('/vl/p4.jsp', function(req, res){
 
         if (doc.action === "tts"){
             var url = "http://translate.google.com/translate_tts?ie=utf-8&tl=en&q=" + encodeURIComponent(doc.txt);
-            download(url, './public/tts.mp3', function() {
+            download(url, './tmp/tts.mp3', function() {
                 Plugins.fire('ping', {'data': data, 'ambient': ambient, 'doc': doc});
                 data.push(0xff, 0x0a);
                 res.end(encode.array(data), 'binary');
@@ -64,11 +64,17 @@ app.get('/vl/p4.jsp', function(req, res){
     res.end(encode.array(data), 'binary');
 });
 
+app.get("/mp3", function(req, res){
+   res.sendfile(__dirname + "/tmp/tts.mp3");
+});
+
 app.get('/failed/:jobName/:names', function(req, res){
     bunnyQueue.push({ left: 9, right: 9, action: 'ears' });  // sad ears
     bunnyQueue.push({ action: 'tts', txt: req.params.names + ' caused the ' + req.params.jobName + ' build to fail' });
     res.send('');
 });
+
+
 
 app.get('/broken/:jobName/:names', function(req, res){
     bunnyQueue.push({ left: 5, right: 5, action: 'ears' });  // sad ears
