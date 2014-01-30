@@ -2,7 +2,7 @@ var express = require('express');
 var app = express();
 var _ = require('underscore');
 var config = require('./config.js');
-var cronJob = require('cron').CronJob;
+//var cronJob = require('cron').CronJob;
 var encode = require('./lib/encode');
 var sprintf = require('./lib/sprintf');
 var Plugins = require('./lib/plugins');
@@ -128,7 +128,7 @@ process.env.TZ = config.server.tz || 'GMT';
 Plugins = exports.Plugins = new Plugins(this);
 Plugins.load(config.plugins);
 var bunnyQueue = config.startupCommands;
-
+/*
 var cronJobs = _.map(config.scheduledCommands, function(c) {
     return new cronJob({
         cronTime: c.time,
@@ -140,7 +140,7 @@ var cronJobs = _.map(config.scheduledCommands, function(c) {
         start: true
     });
 });
-
+*/
 //////////////////
 // START SERVER //
 //////////////////
