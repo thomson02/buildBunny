@@ -7,6 +7,7 @@ var encode = require('./lib/encode');
 var sprintf = require('./lib/sprintf');
 var Plugins = require('./lib/plugins');
 var fs = require('fs');
+var http = require('http');
 
 // Configure the server
 app.configure(function(){
@@ -117,6 +118,31 @@ app.get('/tts/:msg', function(req, res){
     bunnyQueue.push({ action: 'tts', txt: req.params.msg });
     res.send('ok');
 });
+
+
+
+var download2 = function(url, cb) {
+    var file = fs.createWriteStream('./public/tts.mp3', { flags: 'w' });
+    http.get(url, function(response) {
+        response.pipe(file);
+        file.on('finish', function() {
+            file.close();
+            cb();
+        });
+    });
+};
+
+app.get('/tts2/:msg', function(req, res){
+    var url = "http://translate.google.com/translate_tts?ie=utf-8&tl=en&q=" + encodeURIComponent(req.params.msg);
+    download2(url, function() {
+        return;
+    });
+
+    res.send("ok");
+});
+
+
+
 
 // Hold down the button and speak
 /* Disable for heroku - not used.
